@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Captura Local</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { width: 340px; padding: 14px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    header h1 { font-size: 16px; }
+    .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; margin: 12px 0 6px; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .actions .btn.primary { grid-column: 1 / -1; }
+    details { border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--card); margin-top: 12px; }
+    details summary { cursor: pointer; padding: 10px 0; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+    details summary::after { content: "+"; color: var(--muted); font-weight: 700; }
+    details[open] summary::after { content: "–"; }
+    details .body { padding-bottom: 8px; }
+    .recent { list-style: none; margin: 0; padding: 0; }
+    .recent li { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); cursor: pointer; }
+    .recent li:first-child { border-top: 0; }
+    .recent .t { flex: 1; min-width: 0; }
+    .recent .t b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .recent .t span { font-size: 11px; color: var(--muted); }
+    .hint { margin-top: 12px; font-size: 11px; color: var(--muted); line-height: 1.7; }
+    #warn { margin-bottom: 10px; display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Captura Local</h1>
+    <span class="pill green">100% local</span>
+  </header>
+
+  <div id="warn" class="err"></div>
+
+  <div class="section-title">O que capturar</div>
+  <div class="seg" id="modes">
+    <button data-mode="full">Página inteira</button>
+    <button data-mode="visible">Área visível</button>
+    <button data-mode="selection">Seleção</button>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" data-output="preview">Capturar e revisar</button>
+    <button class="btn" data-output="png">Salvar PNG direto</button>
+    <button class="btn" data-output="pdf" id="btnPdf">Salvar PDF direto</button>
+  </div>
+  <p class="muted small" id="pdfNote" style="margin-top:6px"></p>
+
+  <details id="settings">
+    <summary>Configurações</summary>
+    <div class="body">
+      <div class="field">
+        <label for="scale">Escala da imagem</label>
+        <select id="scale">
+          <option value="auto">Automática (tela)</option>
+          <option value="1">1x</option>
+          <option value="2">2x (retina)</option>
+          <option value="3">3x</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="engine">Motor de página inteira</label>
+        <select id="engine">
+          <option value="cdp">DevTools (sem costura)</option>
+          <option value="scroll">Rolagem e costura</option>
+        </select>
+      </div>
+      <label class="check"><input type="checkbox" id="preScroll"> Rolar antes para carregar imagens</label>
+      <label class="check"><input type="checkbox" id="saveAs"> Perguntar onde salvar</label>
+      <div class="field">
+        <label for="folder">Subpasta em Downloads</label>
+        <input type="text" id="folder" placeholder="Capturas">
+      </div>
+    </div>
+  </details>
+
+  <div class="section-title">Recentes</div>
+  <ul class="recent" id="recent"><li class="muted small">Nenhuma captura ainda.</li></ul>
+
+  <div class="hint">
+    Atalhos: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> página inteira,
+    <kbd>V</kbd> visível, <kbd>A</kbd> seleção, <kbd>P</kbd> PDF direto.
+    Ajuste em chrome://extensions/shortcuts.
+  </div>
+
+  <script src="lib/common.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

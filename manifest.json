@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Captura Local",
+  "version": "1.0.0",
+  "description": "Captura páginas inteiras, área visível ou seleção e salva em PNG, JPEG ou PDF com texto selecionável. Funciona 100% local, sem enviar nada para fora.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Captura Local",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "debugger",
+    "downloads",
+    "storage",
+    "unlimitedStorage",
+    "contextMenus",
+    "notifications",
+    "clipboardWrite"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "commands": {
+    "capture-full": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "Capturar página inteira (abre a prévia)"
+    },
+    "capture-visible": {
+      "suggested_key": { "default": "Alt+Shift+V" },
+      "description": "Capturar área visível"
+    },
+    "capture-selection": {
+      "suggested_key": { "default": "Alt+Shift+A" },
+      "description": "Capturar seleção"
+    },
+    "capture-pdf": {
+      "suggested_key": { "default": "Alt+Shift+P" },
+      "description": "Página inteira direto em PDF"
+    }
+  }
+}

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Captura Local</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar {
+      display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+      background: var(--card-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line); flex: 0 0 auto;
+    }
+    .topbar .brand { font-weight: 800; color: var(--primary); white-space: nowrap; }
+    .topbar .meta { flex: 1; min-width: 0; }
+    .topbar .meta b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+    .topbar .meta span { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .topbar .seg { flex: 0 0 auto; }
+    .topbar .seg button { padding: 6px 12px; }
+    main { flex: 1; display: flex; min-height: 0; }
+    .preview { flex: 1; overflow: auto; padding: 24px; background:
+      repeating-conic-gradient(rgba(100,116,139,.08) 0 25%, transparent 0 50%) 0 0 / 24px 24px; }
+    .preview .frame { display: inline-block; min-width: 100%; text-align: center; }
+    .preview img { display: inline-block; background: #fff; box-shadow: var(--shadow); border: 1px solid var(--line); }
+    .preview.fit img { max-width: 100%; height: auto; }
+    .preview iframe { width: 100%; height: 100%; border: 0; background: #fff; border-radius: 10px; box-shadow: var(--shadow); }
+    .preview.pdf { padding: 12px; }
+    .preview.pdf .frame { display: block; height: 100%; }
+    .preview .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 100%; color: var(--muted); }
+    .spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    aside {
+      width: 340px; flex: 0 0 340px; overflow: auto; border-left: 1px solid var(--line);
+      background: var(--card); padding: 16px; display: flex; flex-direction: column; gap: 14px;
+    }
+    aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .row.one { grid-template-columns: 1fr; }
+    .subtle { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .pdf-ready { margin-top: 10px; padding: 10px; border-radius: 10px; background: var(--green-soft); display: none; }
+    .pdf-ready.show { display: block; }
+    .pdf-ready b { color: var(--green); display: block; margin-bottom: 8px; }
+    .multi-only { display: none; }
+    .multi-only.show { display: block; }
+    .info dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-size: 12px; }
+    .info dt { color: var(--muted); }
+    .info dd { margin: 0; word-break: break-all; }
+    .disabled-note { display: none; }
+    @media (max-width: 860px) {
+      body { height: auto; overflow: auto; }
+      main { flex-direction: column; }
+      .preview { max-height: 60vh; }
+      aside { width: auto; flex: none; border-left: 0; border-top: 1px solid var(--line); }
+    }
+    @media print {
+      .topbar, aside, .toast { display: none !important; }
+      body { height: auto; overflow: visible; background: #fff; }
+      main { display: block; }
+      .preview { overflow: visible; padding: 0; background: none; }
+      .preview img { max-width: 100%; height: auto; box-shadow: none; border: 0; }
+      .preview iframe { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="brand">Captura Local</span>
+    <div class="meta"><b id="title">Carregando...</b><span id="url"></span></div>
+    <div class="seg" id="viewSeg">
+      <button data-view="image" class="on">Imagem</button>
+      <button data-view="pdf" id="viewPdfBtn" disabled>PDF</button>
+    </div>
+    <div class="seg" id="zoomSeg">
+      <button data-zoom="fit" class="on">Ajustar</button>
+      <button data-zoom="real">100%</button>
+    </div>
+  </div>
+
+  <main>
+    <section class="preview fit" id="preview">
+      <div class="loading" id="loading"><div class="spinner"></div><span id="loadingText">Montando a captura...</span></div>
+      <div class="frame" id="imageFrame" hidden><img id="img" alt="Captura"></div>
+      <div class="frame" id="pdfFrame" hidden><iframe id="pdfIframe" title="PDF"></iframe></div>
+    </section>
+
+    <aside>
+      <div id="error" class="err" hidden></div>
+
+      <section id="secImage">
+        <h2>Imagem</h2>
+        <div class="row">
+          <button class="btn green" id="btnPng">Baixar PNG</button>
+          <button class="btn" id="btnJpeg">Baixar JPEG</button>
+          <button class="btn" id="btnCopy">Copiar imagem</button>
+          <button class="btn" id="btnPrint">Imprimir</button>
+        </div>
+        <div class="field">
+          <label for="exportScale">Tamanho de exportação</label>
+          <select id="exportScale">
+            <option value="1">Original</option>
+            <option value="0.5">Metade (50%)</option>
+            <option value="0.25">Um quarto (25%)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="jpegQuality">Qualidade JPEG</label>
+          <input type="number" id="jpegQuality" min="50" max="100" step="1">
+        </div>
+        <div class="subtle" id="imgDims"></div>
+      </section>
+
+      <section id="secPdf">
+        <h2>PDF</h2>
+        <div class="seg" id="pdfMode">
+          <button data-mode="single">Página única</button>
+          <button data-mode="multi">Paginado</button>
+        </div>
+        <div class="multi-only" id="multiOnly">
+          <div class="field">
+            <label for="paper">Tamanho</label>
+            <select id="paper">
+              <option value="A4">A4</option>
+              <option value="Letter">Carta (Letter)</option>
+              <option value="Legal">Ofício (Legal)</option>
+              <option value="A3">A3</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="landscape">Orientação</label>
+            <select id="landscape">
+              <option value="false">Retrato</option>
+              <option value="true">Paisagem</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="marginMm">Margem (mm)</label>
+            <input type="number" id="marginMm" min="0" max="40" step="1">
+          </div>
+          <label class="check"><input type="checkbox" id="keepLayout"> Manter layout de desktop (reduz escala)</label>
+          <label class="check"><input type="checkbox" id="unfix"> Converter elementos fixos (evita repetir em cada página)</label>
+        </div>
+        <label class="check"><input type="checkbox" id="background"> Imprimir fundos e cores</label>
+        <label class="check"><input type="checkbox" id="headerFooter"> Cabeçalho e rodapé (título, URL, data, página)</label>
+        <label class="check"><input type="checkbox" id="outline"> Marcadores a partir dos títulos</label>
+        <label class="check"><input type="checkbox" id="screenMedia"> Usar CSS de tela (ignora CSS de impressão)</label>
+        <label class="check"><input type="checkbox" id="tagged"> PDF marcado (acessibilidade, mais lento)</label>
+        <div class="row one" style="margin-top:8px">
+          <button class="btn primary" id="btnPdfVector">Gerar PDF com texto selecionável</button>
+          <button class="btn" id="btnPdfImage">Gerar PDF de imagem (igual à captura)</button>
+        </div>
+        <p class="subtle" id="pdfHint">O PDF com texto usa o motor de impressão do Chrome na aba original: texto pesquisável e selecionável, links clicáveis, editável no visualizador do Chrome. A aba precisa continuar aberta.</p>
+        <div class="pdf-ready" id="pdfReady">
+          <b id="pdfReadyLabel">PDF pronto</b>
+          <div class="row">
+            <button class="btn green" id="btnPdfDownload">Baixar PDF</button>
+            <button class="btn" id="btnPdfOpen">Abrir no Chrome</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="info">
+        <h2>Detalhes</h2>
+        <dl>
+          <dt>Modo</dt><dd id="infoMode"></dd>
+          <dt>Tamanho</dt><dd id="infoSize"></dd>
+          <dt>Escala</dt><dd id="infoScale"></dd>
+          <dt>Data</dt><dd id="infoDate"></dd>
+          <dt>URL</dt><dd><a id="infoUrl" target="_blank" rel="noopener"></a></dd>
+        </dl>
+      </section>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="lib/common.js"></script>
+  <script src="lib/pdf-image.js"></script>
+  <script src="result.js"></script>
+</body>
+</html>
