@@ -33,6 +33,8 @@ desta pasta, e por isso não depende de revisão, atualização automática nem 
 - Área visível (só o que aparece na janela).
 - Seleção: arraste um retângulo sobre a página; `Esc` cancela.
 - Rola a página antes da captura para disparar imagens com carregamento preguiçoso (lazy).
+- Revela blocos que só aparecem com animação de entrada ao rolar (Framer, Webflow, AOS,
+  GSAP, Elementor). Sem isso, essas seções saem em branco — e no PDF nem o texto vai junto.
 - Cabeçalhos e barras fixas aparecem uma vez só, no lugar certo.
 - Escala 1x, 2x (Retina) ou 3x, ou a escala automática da tela.
 - Dois motores para página inteira: **DevTools (sem costura)**, o padrão, e **rolagem e
@@ -137,6 +139,7 @@ Sem build step. Manifest V3. JavaScript puro.
 | `lib/common.js` | configurações padrão, nomes de arquivo, utilitários compartilhados |
 | `lib/pdf-image.js` | gerador mínimo de PDF a partir de JPEGs (sem dependências) |
 | `style.css` | tema claro/escuro compartilhado |
+| `icons/` | `icon.svg` é a fonte única; os PNGs saem dele com `cd icons && for s in 16 32 48 128; do rsvg-convert -w $s -h $s icon.svg -o icon$s.png; done` (nunca editar um tamanho à mão) |
 
 Detalhes que custaram tempo e não devem ser desfeitos:
 
@@ -197,6 +200,8 @@ bookmarks**, that you can annotate in Chrome's built-in PDF viewer.
 - Capture the **entire page** (including everything below the fold), the **visible area**, or
   a **drag-selected region**.
 - Pre-scrolls the page to trigger lazy-loaded images; fixed headers appear once, in place.
+- Reveals blocks hidden behind scroll-in animations (Framer, Webflow, AOS, GSAP, Elementor),
+  which would otherwise come out blank.
 - 1x, 2x (Retina) or 3x scale. Two full-page engines: DevTools Protocol (no stitching seams,
   default) and scroll-and-stitch (fallback).
 - **PNG / JPEG** export (adjustable quality, optional 50% / 25% downscale), copy to clipboard,

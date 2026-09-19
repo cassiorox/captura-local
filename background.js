@@ -174,11 +174,17 @@ async function generatePdfForRecord(id, options) {
 async function captureFullCdp(tab, settings) {
   const target = { tabId: tab.id };
   await attach(target);
+  let revealed = false;
   try {
     const info = await exec(tab.id, fnPageInfo);
     if (settings.preScroll) {
       setBadge('lazy', '#003ec7');
       await exec(tab.id, fnPreScroll, [settings.preScrollDelay || 120, 20000]);
+    }
+    if (settings.revealAnim !== false) {
+      await exec(tab.id, fnRevealAnim);
+      revealed = true;
+      await sleep(120);
     }
     const m = await cdp(target, 'Page.getLayoutMetrics');
     const width = Math.ceil((m.cssLayoutViewport && m.cssLayoutViewport.clientWidth) || info.clientWidth);
@@ -204,6 +210,7 @@ async function captureFullCdp(tab, settings) {
     }
     return { width, height, pixelRatio: pr, chunks, engine: 'cdp' };
   } finally {
+    if (revealed) { try { await exec(tab.id, fnUnrevealAnim); } catch {} }
     await restoreViewport(target, tab.id);
     await detach(target);
   }
@@ -234,9 +241,17 @@ async function captureFullScroll(tab, settings) {
   let y = 0;
   let lastY = -1;
   let first = true;
+  let revealed = false;
   try {
     for (let guard = 0; guard < 400; guard++) {
       const pos = await exec(tab.id, fnScrollStep, [y, !first, 180]);
+      if (settings.revealAnim !== false) {
+        // Reaplica a cada passo: blocos que voltam a se esconder ao sair da viewport
+        // (animações "whileInView" sem once) precisam ser destravados de novo.
+        await exec(tab.id, fnRevealAnim);
+        revealed = true;
+        await sleep(120);
+      }
       await throttleVisibleCapture();
       const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
       chunks.push({ y: pos.scrollY, height: vh, dataUrl });
@@ -247,6 +262,7 @@ async function captureFullScroll(tab, settings) {
       first = false;
     }
   } finally {
+    if (revealed) { try { await exec(tab.id, fnUnrevealAnim); } catch {} }
     try { await exec(tab.id, fnScrollRestore, [info.scrollY]); } catch {}
   }
   let pr = info.dpr;
@@ -291,11 +307,17 @@ async function capturePdf(tab, o, settings, widthHint) {
   let media = false;
   let unfixed = false;
   let frozen = false;
+  let revealed = false;
   try {
     const info = await exec(tab.id, fnPageInfo);
     if (settings.preScroll) {
       setBadge('lazy', '#003ec7');
       await exec(tab.id, fnPreScroll, [settings.preScrollDelay || 120, 20000]);
+    }
+    if (settings.revealAnim !== false) {
+      await exec(tab.id, fnRevealAnim);
+      revealed = true;
+      await sleep(120);
     }
     if (o.screenMedia !== false) {
       await cdp(target, 'Emulation.setEmulatedMedia', { media: 'screen' });
@@ -345,6 +367,7 @@ async function capturePdf(tab, o, settings, widthHint) {
     return { pdfBase64: base64, pdfOptions: o, width: cssW, height: cssH };
   } finally {
     if (frozen) { try { await exec(tab.id, fnUnfreezeVh); } catch {} }
+    if (revealed) { try { await exec(tab.id, fnUnrevealAnim); } catch {} }
     if (unfixed) { try { await exec(tab.id, fnRefix); } catch {} }
     if (media) { try { await cdp(target, 'Emulation.setEmulatedMedia', { media: '' }); } catch {} }
     await detach(target);
@@ -586,6 +609,73 @@ function fnUnfreezeVh() {
   const backup = window.__clVhBackup || [];
   for (const { st, prop, v, pr } of backup) { try { st.setProperty(prop, v, pr); } catch {} }
   window.__clVhBackup = null;
+  return backup.length;
+}
+
+// Muita página moderna (Framer, Webflow, AOS, GSAP, Elementor) deixa blocos com
+// opacity 0 até rolarem para dentro da tela, e alguns voltam a se esconder ao sair.
+// Como o motor CDP e o printToPDF não rolam a página, esses blocos saem em branco —
+// no PDF nem o texto vai junto. Aqui concluímos as animações em curso e destravamos
+// o que ficou escondido; fnUnrevealAnim devolve a página ao estado original.
+function fnRevealAnim() {
+  let finished = 0;
+  try {
+    for (const a of document.getAnimations()) { try { a.finish(); finished++; } catch {} }
+  } catch {}
+
+  // Bibliotecas que escondem por classe/atributo: um CSS resolve sem tocar no DOM.
+  if (!document.getElementById('__cl_reveal_css')) {
+    const st = document.createElement('style');
+    st.id = '__cl_reveal_css';
+    st.textContent = '[data-aos]{opacity:1!important;transform:none!important;transition:none!important}'
+      + '.wow,.animated{visibility:visible!important;animation-name:none!important}'
+      + '.elementor-invisible{opacity:1!important;visibility:visible!important;animation:none!important}'
+      + '.gs-reveal,.reveal,.scroll-reveal,.js-reveal{opacity:1!important;transform:none!important}';
+    (document.head || document.documentElement).appendChild(st);
+  }
+
+  // Animação por JS deixa a pista no estilo inline (style="opacity:0"). Conteúdo
+  // escondido de propósito usa display:none ou classe CSS, que não tocamos aqui.
+  const backup = window.__clRevealBackup || (window.__clRevealBackup = []);
+  let revealed = 0;
+  for (const el of document.querySelectorAll('[style*="opacity"]')) {
+    if (el.dataset.clRevealed) continue;
+    const op = el.style.opacity;
+    if (op === '' || !(Number(op) < 1)) continue;
+    if (getComputedStyle(el).display === 'none') continue;
+    backup.push({
+      el,
+      opacity: op, opacityPriority: el.style.getPropertyPriority('opacity'),
+      transform: el.style.transform, transformPriority: el.style.getPropertyPriority('transform'),
+      visibility: el.style.visibility, visibilityPriority: el.style.getPropertyPriority('visibility'),
+      filter: el.style.filter, filterPriority: el.style.getPropertyPriority('filter'),
+    });
+    el.dataset.clRevealed = '1';
+    el.style.setProperty('opacity', '1', 'important');
+    if (el.style.transform && el.style.transform !== 'none') el.style.setProperty('transform', 'none', 'important');
+    if (el.style.visibility === 'hidden') el.style.setProperty('visibility', 'visible', 'important');
+    if (el.style.filter && /blur/.test(el.style.filter)) el.style.setProperty('filter', 'none', 'important');
+    revealed++;
+  }
+  return { finished, revealed };
+}
+
+function fnUnrevealAnim() {
+  const backup = window.__clRevealBackup || [];
+  for (const b of backup) {
+    for (const prop of ['opacity', 'transform', 'visibility', 'filter']) {
+      const v = b[prop];
+      const pr = b[prop + 'Priority'];
+      try {
+        b.el.style.removeProperty(prop);
+        if (v) b.el.style.setProperty(prop, v, pr);
+      } catch {}
+    }
+    delete b.el.dataset.clRevealed;
+  }
+  window.__clRevealBackup = null;
+  const st = document.getElementById('__cl_reveal_css');
+  if (st) st.remove();
   return backup.length;
 }
 

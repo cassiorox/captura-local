@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Captura Local",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Captura páginas inteiras, área visível ou seleção e salva em PNG, JPEG ou PDF com texto selecionável. Funciona 100% local, sem enviar nada para fora.",
   "minimum_chrome_version": "116",
   "icons": {

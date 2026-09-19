@@ -43,6 +43,7 @@
   $('#scale').value = String(settings.scale);
   $('#engine').value = settings.engine;
   $('#preScroll').checked = !!settings.preScroll;
+  $('#revealAnim').checked = settings.revealAnim !== false;
   $('#saveAs').checked = !!settings.saveAs;
   $('#folder').value = settings.folder || '';
   const persist = async () => {
@@ -50,11 +51,12 @@
       scale: $('#scale').value,
       engine: $('#engine').value,
       preScroll: $('#preScroll').checked,
+      revealAnim: $('#revealAnim').checked,
       saveAs: $('#saveAs').checked,
       folder: CL.sanitizeFolder($('#folder').value),
     });
   };
-  ['#scale', '#engine', '#preScroll', '#saveAs', '#folder'].forEach((s) => $(s).addEventListener('change', persist));
+  ['#scale', '#engine', '#preScroll', '#revealAnim', '#saveAs', '#folder'].forEach((s) => $(s).addEventListener('change', persist));
 
   // Ações
   document.querySelectorAll('[data-output]').forEach((b) => b.addEventListener('click', async () => {
